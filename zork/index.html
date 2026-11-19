@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zork · Juegos retro</title>
+<style>
+  :root{--bg:#050a06;--fg:#7cf29a;--dim:#3f8f57;--panel:#0c1610;--line:#1c3324;--amber:#ffd25a}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"IBM Plex Mono","Courier New",monospace}
+  body{display:flex;flex-direction:column}
+  .top{display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:13px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  .top a{color:#bbb;text-decoration:none;background:#1a1a1a;padding:4px 8px;border-radius:4px;font-family:monospace}
+  .tabs a.on{background:var(--fg);color:#000}
+  .ayuda-btn{margin-left:auto;background:none;border:1px solid var(--line);color:var(--fg);padding:4px 8px;border-radius:4px;font:inherit;cursor:pointer}
+  .wrap{flex:1;display:flex;min-height:0;max-width:980px;width:100%;margin:0 auto}
+  #juego{flex:1;display:flex;flex-direction:column;min-height:0;padding:0 12px}
+  .estado{background:var(--fg);color:#000;padding:3px 8px;margin-top:10px;white-space:pre;overflow:hidden;font-weight:bold;min-height:1.5em}
+  .texto{flex:1;overflow-y:auto;padding:14px 4px;line-height:1.5;font-size:16px;text-shadow:0 0 6px rgba(124,242,154,.35)}
+  .linea{white-space:pre-wrap;min-height:1.5em}
+  .s-input{color:var(--amber)}
+  .s-emphasized{font-style:italic}
+  .s-header,.s-subheader{font-weight:bold}
+  .s-alert,.s-note{color:#ff8f6b}
+  form.entrada{display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:10px 4px 14px}
+  form.entrada span{color:var(--amber)}
+  form.entrada input{flex:1;background:transparent;border:0;outline:0;color:var(--amber);font:inherit;font-size:16px;caret-color:var(--amber)}
+  form.entrada.tecla::after{content:"[pulsa una tecla]";color:var(--dim)}
+  aside{width:280px;border-left:1px solid var(--line);padding:14px;font-size:13px;line-height:1.55;color:#b9e8c6;overflow-y:auto}
+  aside h2{font-size:13px;color:var(--amber);margin:0 0 8px}
+  aside code{color:var(--fg)}
+  aside ul{padding-left:18px;margin:6px 0 12px}
+  @media (max-width:760px){aside{display:none}aside.ver{display:block;position:fixed;inset:46px 0 0 0;width:auto;background:var(--panel);z-index:5}}
+  #dialogo{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:10}
+  #dialogo[hidden]{display:none}
+  #dialogo .caja{background:var(--panel);border:1px solid var(--fg);padding:18px;border-radius:6px;min-width:280px}
+  #dialogo input{width:100%;background:#000;border:1px solid var(--line);color:var(--amber);font:inherit;padding:6px;margin:8px 0}
+  #dialogo button{background:var(--fg);color:#000;border:0;padding:5px 12px;font:inherit;cursor:pointer;margin-right:6px}
+  #dialogo .cancelar{background:#333;color:#ddd}
+</style>
+</head>
+<body>
+  <div class="top">
+    <a href="../">← Volver</a>
+    <span class="tabs">
+      <a href="?juego=zork1" data-j="zork1">Zork I</a>
+      <a href="?juego=zork2" data-j="zork2">Zork II</a>
+      <a href="?juego=zork3" data-j="zork3">Zork III</a>
+    </span>
+    <button class="ayuda-btn" onclick="document.querySelector('aside').classList.toggle('ver')">Ayuda</button>
+  </div>
+
+  <div class="wrap">
+    <div id="juego">
+      <div class="estado"></div>
+      <div class="texto" aria-live="polite"></div>
+      <form class="entrada" autocomplete="off"><span>&gt;</span><input aria-label="Escribe un comando" spellcheck="false" autocapitalize="off" disabled></form>
+    </div>
+    <aside>
+      <h2>CÓMO SE JUEGA</h2>
+      <p>Zork (Infocom, 1980) es una aventura de texto: lees lo que pasa y escribes órdenes en inglés. El juego está en su idioma original.</p>
+      <ul>
+        <li><code>look</code> (<code>l</code>): describir el lugar</li>
+        <li><code>north</code>, <code>south</code>, <code>east</code>, <code>west</code>, <code>up</code>, <code>down</code> (<code>n s e w u d</code>)</li>
+        <li><code>take lamp</code>, <code>drop sword</code></li>
+        <li><code>open mailbox</code>, <code>read leaflet</code></li>
+        <li><code>inventory</code> (<code>i</code>): qué llevas</li>
+        <li><code>turn on lamp</code>, <code>attack troll with sword</code></li>
+        <li><code>save</code> / <code>restore</code>: guarda en este navegador</li>
+        <li><code>score</code>, <code>restart</code>, <code>quit</code></li>
+      </ul>
+      <p>Con <code>↑</code> / <code>↓</code> repites comandos anteriores.</p>
+      <p>Para empezar: <code>open mailbox</code> y luego <code>read leaflet</code>.</p>
+    </aside>
+  </div>
+
+  <form id="dialogo" hidden>
+    <div class="caja"><p></p><input><button type="submit">Aceptar</button><button type="button" class="cancelar">Cancelar</button></div>
+  </form>
+
+  <!-- Intérprete: ZVM (ifvms.js, MIT) + GlkAPI (glkote-term, MIT) + pantalla propia -->
+  <script src="lib/glkapi.js"></script>
+  <script src="lib/zvm.min.js"></script>
+  <script src="terminal.js"></script>
+  <script>
+    const id = (new URLSearchParams(location.search).get("juego") || "zork1").replace(/[^a-z0-9]/g, "");
+    const valido = ["zork1", "zork2", "zork3"].includes(id) ? id : "zork1";
+    document.querySelectorAll(".tabs a").forEach(a => a.classList.toggle("on", a.dataset.j === valido));
+    document.title = { zork1: "Zork I", zork2: "Zork II", zork3: "Zork III" }[valido] + " · Juegos retro";
+    iniciarAventura("historias/" + valido + ".z3", document.getElementById("juego")).catch(e => {
+      document.querySelector(".texto").textContent = "No se pudo iniciar el juego: " + e.message;
+    });
+  </script>
+</body>
+</html>

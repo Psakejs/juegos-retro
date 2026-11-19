@@ -11,39 +11,91 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.55;min-height:100vh;
        background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px)}
-  .wrap{max-width:900px;margin:0 auto;padding:56px 22px}
+  .wrap{max-width:1040px;margin:0 auto;padding:48px 22px}
   h1{font-family:"Press Start 2P",monospace;font-size:clamp(18px,4vw,30px);line-height:1.45;color:var(--accent);margin:0 0 14px}
-  .lead{color:var(--dim);max-width:640px;margin:0 0 40px;font-size:17px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
-  a.card{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px;transition:transform .15s,border-color .15s}
+  .lead{color:var(--dim);max-width:680px;margin:0 0 34px;font-size:17px}
+  h2{font-family:"Press Start 2P",monospace;font-size:11px;color:var(--green);letter-spacing:.5px;margin:34px 0 14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  a.card{display:flex;flex-direction:column;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;transition:transform .15s,border-color .15s}
   a.card:hover{transform:translateY(-3px);border-color:var(--accent)}
-  .tag{font-family:"Press Start 2P",monospace;font-size:9px;color:var(--green);letter-spacing:.5px}
-  .card h2{margin:10px 0 8px;font-size:20px}
-  .card p{margin:0;color:#cfc8d9;font-size:15px}
-  .go{display:inline-block;margin-top:16px;font-family:"Press Start 2P",monospace;font-size:10px;color:var(--yellow)}
-  footer{margin-top:48px;color:var(--dim);font-size:13px;border-top:1px dashed var(--line);padding-top:16px}
+  .tag{font-family:"Press Start 2P",monospace;font-size:8px;color:var(--dim);letter-spacing:.5px}
+  .card h3{margin:8px 0 6px;font-size:18px}
+  .card p{margin:0 0 12px;color:#cfc8d9;font-size:14px;flex:1}
+  .go{font-family:"Press Start 2P",monospace;font-size:9px;color:var(--yellow)}
+  .card.pronto{opacity:.55}
+  .card.pronto .go{color:var(--dim)}
+  footer{margin-top:44px;color:var(--dim);font-size:13px;border-top:1px dashed var(--line);padding-top:16px}
   footer a{color:var(--dim)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Juegos retro<br>en el navegador</h1>
-  <p class="lead">Dos formas de llevar los clásicos de los 90 a una página web: construir el motor desde cero para entender cómo funciona, o emular la PC original con WebAssembly.</p>
+  <p class="lead">Clásicos de los 80 y 90 funcionando dentro de una página web, sin instalar nada. Unos están hechos desde cero, otros son los juegos originales corriendo en un emulador de DOS compilado a WebAssembly. Todos son legales: libres, freeware o shareware.</p>
+
+  <h2>HECHOS DESDE CERO</h2>
   <div class="grid">
     <a class="card" href="raycaster/">
-      <div class="tag">01 · DESDE CERO</div>
-      <h2>Mini raycaster</h2>
-      <p>Un motor 3D al estilo Wolfenstein 3D en un solo archivo HTML, sin librerías. Muestra los rayos en un mapa y deja activar o desactivar cada parte del motor.</p>
+      <span class="tag">MOTOR 3D · JAVASCRIPT</span>
+      <h3>Mini raycaster</h3>
+      <p>Un 3D al estilo Wolfenstein en un solo archivo. Puedes ver los rayos y activar o desactivar cada parte del motor.</p>
       <span class="go">JUGAR ▶</span>
     </a>
-    <a class="card" href="dos/">
-      <div class="tag">02 · EMULACIÓN</div>
-      <h2>Juego DOS con js-dos</h2>
-      <p>DOSBox compilado a WebAssembly ejecuta un juego original de MS-DOS sin modificarlo. Cambia el bundle por Doom shareware o Freedoom.</p>
+    <a class="card" href="buscaminas/">
+      <span class="tag">PUZZLE · JAVASCRIPT</span>
+      <h3>Buscaminas</h3>
+      <p>Tres niveles, primer clic siempre seguro, banderas, apertura rápida al hacer clic en un número y récords.</p>
       <span class="go">JUGAR ▶</span>
     </a>
   </div>
-  <footer>Emulación DOS con <a href="https://js-dos.com/">js-dos</a>. Solo se publican juegos de libre distribución.</footer>
+
+  <h2>ORIGINALES</h2>
+  <div class="grid">
+    <a class="card" href="dos/?juego=freedoom">
+      <span class="tag">SHOOTER 3D · LIBRE</span>
+      <h3>Freedoom</h3>
+      <p>Un Doom completo y libre (niveles, gráficos y música nuevos) sobre el motor FastDoom para DOS.</p>
+      <span class="go">JUGAR ▶</span>
+    </a>
+    <a class="card" href="zork/">
+      <span class="tag">AVENTURA DE TEXTO · MIT</span>
+      <h3>Zork I, II y III</h3>
+      <p>Las aventuras de texto originales de Infocom (1980), liberadas por Microsoft en 2025. En inglés.</p>
+      <span class="go">JUGAR ▶</span>
+    </a>
+    <a class="card" href="dos/?juego=digger">
+      <span class="tag">ARCADE · FREEWARE</span>
+      <h3>Digger</h3>
+      <p>Excava túneles, junta esmeraldas y escapa de los monstruos. Un clásico de PC de 1983.</p>
+      <span class="go">JUGAR ▶</span>
+    </a>
+    <a class="card pronto" href="dos/?juego=wolf3d">
+      <span class="tag">SHOOTER 3D · SHAREWARE</span>
+      <h3>Wolfenstein 3D</h3>
+      <p>El episodio shareware de 1992: el juego que inspiró al raycaster de este sitio.</p>
+      <span class="go">PRÓXIMAMENTE</span>
+    </a>
+    <a class="card pronto" href="dos/?juego=tyrian">
+      <span class="tag">NAVES · FREEWARE</span>
+      <h3>Tyrian 2000</h3>
+      <p>Uno de los mejores shoot 'em up de PC, con tienda de armas y cinco episodios.</p>
+      <span class="go">PRÓXIMAMENTE</span>
+    </a>
+    <a class="card pronto" href="dos/?juego=omf">
+      <span class="tag">PELEAS · FREEWARE</span>
+      <h3>One Must Fall: 2097</h3>
+      <p>Peleas de robots gigantes con modo torneo. Freeware desde 1999.</p>
+      <span class="go">PRÓXIMAMENTE</span>
+    </a>
+    <a class="card pronto" href="dos/?juego=liero">
+      <span class="tag">ACCIÓN · 2 JUGADORES · FREEWARE</span>
+      <h3>Liero</h3>
+      <p>Gusanos armados hasta los dientes en tiempo real, con terreno destructible.</p>
+      <span class="go">PRÓXIMAMENTE</span>
+    </a>
+  </div>
+
+  <footer>Emulación DOS con <a href="https://js-dos.com/">js-dos</a> · Zork con <a href="https://github.com/curiousdannii/ifvms.js">ifvms.js</a> · Doom con <a href="https://github.com/viti95/FastDoom">FastDoom</a> y <a href="https://freedoom.github.io/">Freedoom</a>. Créditos y licencias en el README del repositorio.</footer>
 </div>
 </body>
 </html>

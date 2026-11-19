@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscaminas · Juegos retro</title>
+<style>
+  :root{
+    --bg:#0e0d12; --ink:#ece6d8; --dim:#9b93a8;
+    --face:#c9c3b6; --hi:#f4f0e6; --lo:#7d776c; --open:#b9b3a6; --line:#a29c90;
+    --accent:#ff6a3d; --led:#ff3b2f; --ledbg:#1a0705;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:"IBM Plex Mono","Courier New",monospace}
+  .top{display:flex;align-items:center;gap:12px;padding:8px 12px;font-size:13px;flex-wrap:wrap}
+  .top a{color:#bbb;text-decoration:none;background:#1a1a1a;padding:4px 8px;border-radius:4px}
+  .top h1{font-size:14px;margin:0;color:var(--accent);letter-spacing:1px}
+  main{display:flex;flex-direction:column;align-items:center;padding:16px 10px 40px;gap:14px}
+  .niveles{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+  .niveles button,.modo{font:inherit;font-size:13px;background:#1c1a22;color:var(--ink);border:1px solid #2e2a36;border-radius:4px;padding:6px 10px;cursor:pointer}
+  .niveles button.on{background:var(--accent);border-color:var(--accent);color:#120a06}
+  .modo.on{background:#ffd25a;color:#120a06;border-color:#ffd25a}
+
+  /* Marco con relieve, estilo PC de los 90 pero con paleta propia */
+  .marco{background:var(--face);padding:10px;border:3px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);max-width:100%;overflow-x:auto}
+  .panel{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px;margin-bottom:10px;border:3px solid;border-color:var(--lo) var(--hi) var(--hi) var(--lo)}
+  .led{background:var(--ledbg);color:var(--led);font-family:"Courier New",monospace;font-weight:bold;font-size:26px;line-height:1;padding:3px 5px;min-width:62px;text-align:right;letter-spacing:2px;text-shadow:0 0 6px rgba(255,59,47,.6);border:2px solid;border-color:var(--lo) var(--hi) var(--hi) var(--lo)}
+  .cara{width:40px;height:40px;background:var(--face);border:3px solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);cursor:pointer;padding:0;display:grid;place-items:center}
+  .cara:active{border-color:var(--lo) var(--hi) var(--hi) var(--lo)}
+  .cara svg{width:26px;height:26px}
+  .tablero{display:grid;border:3px solid;border-color:var(--lo) var(--hi) var(--hi) var(--lo);user-select:none;-webkit-user-select:none;touch-action:manipulation;width:max-content}
+  .c{width:var(--t);height:var(--t);display:grid;place-items:center;font-weight:bold;font-size:calc(var(--t)*.62);line-height:1;
+     background:var(--face);border:calc(var(--t)*.1) solid;border-color:var(--hi) var(--lo) var(--lo) var(--hi);cursor:pointer;padding:0;font-family:inherit}
+  .c.abierta{background:var(--open);border:1px solid var(--line);cursor:default}
+  .c.boom{background:var(--led)}
+  .c.mal{background:#e8b0a8}
+  .c svg{width:82%;height:82%}
+  .n1{color:#1f4fd1}.n2{color:#1f7a2e}.n3{color:#c81d1d}.n4{color:#22237a}
+  .n5{color:#7a1d1d}.n6{color:#127a7a}.n7{color:#111}.n8{color:#555}
+  .info{color:var(--dim);font-size:13px;text-align:center;max-width:560px;line-height:1.6}
+  .info b{color:var(--ink)}
+  .records{font-size:12px;color:var(--dim)}
+  .msg{min-height:1.4em;font-size:15px;color:#ffd25a}
+</style>
+</head>
+<body>
+  <div class="top">
+    <a href="../">← Volver</a>
+    <h1>BUSCAMINAS</h1>
+  </div>
+  <main>
+    <div class="niveles">
+      <button data-n="facil">Fácil 9×9</button>
+      <button data-n="medio">Medio 16×16</button>
+      <button data-n="dificil">Difícil 30×16</button>
+      <button class="modo" id="modo" title="En celular: activa para poner banderas con un toque">🚩 Modo bandera</button>
+    </div>
+
+    <div class="marco">
+      <div class="panel">
+        <div class="led" id="minas">000</div>
+        <button class="cara" id="cara" aria-label="Nueva partida"></button>
+        <div class="led" id="tiempo">000</div>
+      </div>
+      <div class="tablero" id="tablero" role="grid"></div>
+    </div>
+
+    <div class="msg" id="msg" aria-live="polite"></div>
+    <div class="records" id="records"></div>
+    <p class="info">
+      <b>Clic</b>: descubrir casilla · <b>Clic derecho</b> (o mantener pulsado en celular): poner bandera ·
+      <b>Clic en un número</b> con todas sus banderas puestas: descubre las vecinas.
+      El primer clic nunca es una mina.
+    </p>
+  </main>
+
+<script>
+(() => {
+  const NIVELES = {
+    facil:   { w: 9,  h: 9,  minas: 10 },
+    medio:   { w: 16, h: 16, minas: 40 },
+    dificil: { w: 30, h: 16, minas: 99 },
+  };
+
+  // Iconos propios en SVG
+  const SVG = {
+    mina: '<svg viewBox="0 0 20 20"><g stroke="#111" stroke-width="2" stroke-linecap="round"><line x1="10" y1="1.5" x2="10" y2="18.5"/><line x1="1.5" y1="10" x2="18.5" y2="10"/><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></g><circle cx="10" cy="10" r="5.5" fill="#111"/><circle cx="8" cy="8" r="1.6" fill="#fff"/></svg>',
+    bandera: '<svg viewBox="0 0 20 20"><path d="M12.5 1.5 L2 6.5 L12.5 11.5 Z" fill="#e01b1b" stroke="#7a0b0b" stroke-width=".8"/><rect x="12" y="1.5" width="2.2" height="14" fill="#111"/><rect x="5.5" y="15.5" width="12" height="3" rx=".5" fill="#111"/></svg>',
+    cara: (tipo) => {
+      const boca = { normal: '<path d="M8 15 Q12 18 16 15" stroke="#111" stroke-width="1.6" fill="none"/>',
+                     susto:  '<circle cx="12" cy="15.5" r="2" fill="#111"/>',
+                     gano:   '<path d="M7.5 14 Q12 19.5 16.5 14 Z" fill="#111"/>',
+                     perdio: '<path d="M8 17 Q12 13.5 16 17" stroke="#111" stroke-width="1.6" fill="none"/>' }[tipo];
+      const ojos = tipo === "perdio"
+        ? '<g stroke="#111" stroke-width="1.4"><line x1="7.5" y1="8" x2="10" y2="10.5"/><line x1="10" y1="8" x2="7.5" y2="10.5"/><line x1="14" y1="8" x2="16.5" y2="10.5"/><line x1="16.5" y1="8" x2="14" y2="10.5"/></g>'
+        : tipo === "gano"
+        ? '<rect x="5.5" y="8" width="13" height="3" rx="1" fill="#111"/>'
+        : '<circle cx="9" cy="9.5" r="1.4" fill="#111"/><circle cx="15" cy="9.5" r="1.4" fill="#111"/>';
+      return '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="#ffd25a" stroke="#111" stroke-width="1.2"/>' + ojos + boca + '</svg>';
+    },
+  };
+
+  const $ = id => document.getElementById(id);
+  const tablero = $("tablero"), cara = $("cara");
+  let nivel, W, H, N, celdas, minas, abiertas, banderas, estado, t0, timer, modoBandera = false;
+
+  const vecinos = i => {
+    const x = i % W, y = (i / W) | 0, r = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && ny >= 0 && nx < W && ny < H) r.push(ny * W + nx);
+    }
+    return r;
+  };
+
+  function nuevo(n) {
+    nivel = n || nivel || "facil";
+    ({ w: W, h: H, minas: N } = NIVELES[nivel]);
+    document.querySelectorAll(".niveles button[data-n]").forEach(b => b.classList.toggle("on", b.dataset.n === nivel));
+    minas = null; abiertas = 0; banderas = 0; estado = "listo";
+    clearInterval(timer); $("tiempo").textContent = "000";
+    $("msg").textContent = "";
+    ponerCara("normal");
+    // Tamaño de casilla según el ancho de pantalla
+    const t = Math.max(22, Math.min(32, Math.floor((Math.min(innerWidth, 1000) - 60) / W)));
+    tablero.style.setProperty("--t", t + "px");
+    tablero.style.gridTemplateColumns = `repeat(${W}, var(--t))`;
+    tablero.innerHTML = "";
+    celdas = [];
+    for (let i = 0; i < W * H; i++) {
+      const b = document.createElement("button");
+      b.className = "c"; b.dataset.i = i;
+      b.setAttribute("aria-label", "casilla");
+      tablero.appendChild(b);
+      celdas.push({ el: b, mina: false, n: 0, abierta: false, bandera: false });
+    }
+    contador();
+    mostrarRecords();
+  }
+
+  // Las minas se ponen después del primer clic, evitando esa casilla y sus vecinas
+  function sembrar(segura) {
+    const prohibidas = new Set([segura, ...vecinos(segura)]);
+    const libres = [];
+    for (let i = 0; i < W * H; i++) if (!prohibidas.has(i)) libres.push(i);
+    for (let k = 0; k < N; k++) {           // Fisher-Yates parcial
+      const j = k + Math.floor(Math.random() * (libres.length - k));
+      [libres[k], libres[j]] = [libres[j], libres[k]];
+      celdas[libres[k]].mina = true;
+    }
+    celdas.forEach((c, i) => c.n = vecinos(i).filter(v => celdas[v].mina).length);
+    minas = true;
+    estado = "jugando";
+    t0 = performance.now();
+    timer = setInterval(() => $("tiempo").textContent = String(Math.min(999, ((performance.now() - t0) / 1000) | 0)).padStart(3, "0"), 250);
+  }
+
+  function abrir(i) {
+    const pila = [i];
+    while (pila.length) {                    // relleno por inundación de las zonas vacías
+      const k = pila.pop(), c = celdas[k];
+      if (c.abierta || c.bandera) continue;
+      c.abierta = true; abiertas++;
+      c.el.classList.add("abierta");
+      c.el.setAttribute("aria-label", c.n ? c.n + " minas cerca" : "vacía");
+      if (c.mina) { c.el.innerHTML = SVG.mina; continue; }
+      if (c.n) { c.el.textContent = c.n; c.el.classList.add("n" + c.n); }
+      else vecinos(k).forEach(v => pila.push(v));
+    }
+  }
+
+  function descubrir(i) {
+    if (estado === "fin") return;
+    if (!minas) sembrar(i);
+    const c = celdas[i];
+    if (c.bandera) return;
+    if (c.abierta) {                         // "acorde": abrir vecinas si las banderas coinciden
+      if (!c.n) return;
+      const vs = vecinos(i);
+      if (vs.filter(v => celdas[v].bandera).length !== c.n) return;
+      vs.forEach(v => { if (!celdas[v].abierta && !celdas[v].bandera) { if (celdas[v].mina) return perder(v); abrir(v); } });
+    } else {
+      if (c.mina) return perder(i);
+      abrir(i);
+    }
+    if (estado !== "fin" && abiertas === W * H - N) ganar();
+  }
+
+  function marcar(i) {
+    if (estado === "fin") return;
+    const c = celdas[i];
+    if (c.abierta) return;
+    c.bandera = !c.bandera;
+    banderas += c.bandera ? 1 : -1;
+    c.el.innerHTML = c.bandera ? SVG.bandera : "";
+    c.el.setAttribute("aria-label", c.bandera ? "bandera" : "casilla");
+    contador();
+  }
+
+  function perder(i) {
+    estado = "fin"; clearInterval(timer);
+    celdas.forEach(c => {
+      if (c.mina && !c.bandera) { c.el.classList.add("abierta"); c.el.innerHTML = SVG.mina; }
+      if (!c.mina && c.bandera) c.el.classList.add("mal");
+    });
+    celdas[i].el.classList.add("boom");
+    ponerCara("perdio");
+    $("msg").textContent = "¡Boom! Pulsa la cara para jugar de nuevo.";
+  }
+
+  function ganar() {
+    estado = "fin"; clearInterval(timer);
+    const seg = (performance.now() - t0) / 1000;
+    celdas.forEach(c => { if (c.mina && !c.bandera) { c.bandera = true; c.el.innerHTML = SVG.bandera; } });
+    banderas = N; contador();
+    ponerCara("gano");
+    const rec = leerRecords(), previo = rec[nivel];
+    let txt = `¡Ganaste en ${seg.toFixed(1)} segundos!`;
+    if (!previo || seg < previo) { rec[nivel] = seg; guardarRecords(rec); txt += " Nuevo récord."; }
+    $("msg").textContent = txt;
+    mostrarRecords();
+  }
+
+  const contador = () => {
+    const v = N - banderas;
+    $("minas").textContent = (v < 0 ? "-" + String(-v).padStart(2, "0") : String(v).padStart(3, "0"));
+  };
+  const ponerCara = t => cara.innerHTML = SVG.cara(t);
+
+  // Récords en este navegador
+  function leerRecords() { try { return JSON.parse(localStorage.getItem("buscaminas-records")) || {}; } catch (e) { return {}; } }
+  function guardarRecords(r) { try { localStorage.setItem("buscaminas-records", JSON.stringify(r)); } catch (e) {} }
+  function mostrarRecords() {
+    const r = leerRecords();
+    const f = k => r[k] ? r[k].toFixed(1) + " s" : "—";
+    $("records").textContent = `Mejores tiempos · Fácil: ${f("facil")} · Medio: ${f("medio")} · Difícil: ${f("dificil")}`;
+  }
+
+  // ---------- Entrada: ratón y toque ----------
+  let pulsado = null, largo = false;
+  tablero.addEventListener("contextmenu", e => e.preventDefault());
+  tablero.addEventListener("pointerdown", e => {
+    const b = e.target.closest(".c"); if (!b || estado === "fin") return;
+    if (e.button === 0) ponerCara("susto");
+    largo = false;
+    if (e.pointerType !== "mouse") {
+      pulsado = setTimeout(() => { largo = true; marcar(+b.dataset.i); if (navigator.vibrate) navigator.vibrate(25); }, 380);
+    }
+  });
+  const soltar = () => { clearTimeout(pulsado); if (estado !== "fin") ponerCara("normal"); };
+  tablero.addEventListener("pointerup", e => {
+    soltar();
+    const b = e.target.closest(".c"); if (!b) return;
+    const i = +b.dataset.i;
+    if (largo) return;
+    if (e.button === 2) return marcar(i);
+    if (e.button === 0) (modoBandera && !celdas[i].abierta) ? marcar(i) : descubrir(i);
+  });
+  tablero.addEventListener("pointerleave", soltar);
+  tablero.addEventListener("pointercancel", soltar);
+
+  cara.addEventListener("click", () => nuevo());
+  document.querySelectorAll(".niveles button[data-n]").forEach(b => b.addEventListener("click", () => nuevo(b.dataset.n)));
+  $("modo").addEventListener("click", () => { modoBandera = !modoBandera; $("modo").classList.toggle("on", modoBandera); });
+  addEventListener("keydown", e => { if (e.key === "F2" || e.key === "r") nuevo(); });
+
+  nuevo("facil");
+})();
+</script>
+</body>
+</html>

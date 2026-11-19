@@ -3,39 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Juego DOS en el navegador con js-dos</title>
+  <title>Juego DOS en el navegador</title>
 
-  <!-- 1) js-dos: DOSBox compilado a WebAssembly.
-          Está copiado dentro del repositorio (carpeta js-dos/), así no depende de servidores externos. -->
+  <!-- js-dos: DOSBox compilado a WebAssembly, copiado dentro del repo (carpeta js-dos/) -->
   <link rel="stylesheet" href="js-dos/js-dos.css">
   <script src="js-dos/js-dos.js"></script>
 
   <style>
     html, body { margin: 0; height: 100%; background: #111; color: #ccc; font-family: monospace; }
-    .top { display: flex; align-items: center; gap: 16px; padding: 8px 12px; font-size: 13px; }
+    .top { display: flex; align-items: center; gap: 14px; padding: 8px 12px; font-size: 13px; flex-wrap: wrap; }
     .top a { color: #bbb; text-decoration: none; background: #222; padding: 4px 8px; border-radius: 4px; }
-    #dos { width: 100%; max-width: 960px; aspect-ratio: 4 / 3; margin: 0 auto; }
+    .top b { color: #ff6a3d; }
+    #dos { width: 100%; max-width: 1024px; aspect-ratio: 4 / 3; margin: 0 auto; }
+    .missing { max-width: 640px; margin: 60px auto; padding: 20px; line-height: 1.6; }
   </style>
 </head>
 <body>
   <div class="top">
     <a href="../">← Volver</a>
-    <span>Digger (1983) · flechas para moverte, F1 para disparar</span>
+    <b id="titulo"></b>
+    <span id="controles"></span>
   </div>
-
-  <!-- 2) Un div vacío: js-dos dibuja ahí la pantalla del juego -->
   <div id="dos"></div>
 
   <script>
-    // 3) Arrancar el emulador con un "bundle" .jsdos
-    //    Un bundle es solo un .zip con los archivos del juego + .jsdos/dosbox.conf
-    //    Para DOOM: crea doom.jsdos con DOOM shareware (o Freedoom) en https://dos.zone/studio/,
-    //    ponlo en esta carpeta y cambia la url por "doom.jsdos".
-    Dos(document.getElementById("dos"), {
-      url: "digger.jsdos",
-      pathPrefix: new URL("js-dos/emulators/", location.href).href, // dónde están los .wasm
-      autoStart: true,
-    });
+    // Catálogo de juegos: cada uno es un bundle .jsdos en esta misma carpeta.
+    // Un bundle es solo un .zip con los archivos del juego + .jsdos/dosbox.conf
+    const JUEGOS = {
+      digger:   { titulo: "Digger (1983)", bundle: "digger.jsdos",
+                  controles: "Flechas: moverte · F1: disparar" },
+      freedoom: { titulo: "Freedoom: Phase 1 (motor FastDoom)", bundle: "freedoom.jsdos",
+                  controles: "Flechas: moverte · Ctrl: disparar · Espacio: abrir puertas · Alt+flechas: paso lateral · Shift: correr · 1-7: armas" },
+      wolf3d:   { titulo: "Wolfenstein 3D · episodio shareware (1992)", bundle: "wolf3d.jsdos",
+                  controles: "Flechas: moverte · Ctrl: disparar · Espacio: abrir puertas · Alt+flechas: paso lateral" },
+      tyrian:   { titulo: "Tyrian 2000 (freeware)", bundle: "tyrian.jsdos",
+                  controles: "Flechas: mover la nave · Espacio: disparar · Enter: menú" },
+      omf:      { titulo: "One Must Fall: 2097 (freeware)", bundle: "omf.jsdos",
+                  controles: "Flechas: moverte · Ctrl/Alt: golpe y patada · Enter: menú" },
+      liero:    { titulo: "Liero 1.33 (freeware)", bundle: "liero.jsdos",
+                  controles: "J1: flechas, Ctrl, Shift · J2: R/F/D/G, Tab, ` · ver menú del juego" },
+    };
+
+    const id = new URLSearchParams(location.search).get("juego") || "digger";
+    const juego = JUEGOS[id];
+    const dosDiv = document.getElementById("dos");
+
+    if (!juego) {
+      dosDiv.outerHTML = '<div class="missing">No existe ese juego. Vuelve a la portada.</div>';
+    } else {
+      document.title = juego.titulo + " · Juegos retro";
+      document.getElementById("titulo").textContent = juego.titulo;
+      document.getElementById("controles").textContent = juego.controles;
+
+      // Si el bundle todavía no se ha subido al repo, avisar en vez de mostrar un error del emulador
+      fetch(juego.bundle, { method: "HEAD" }).then(r => {
+        if (!r.ok) throw new Error();
+        Dos(dosDiv, {
+          url: juego.bundle,
+          pathPrefix: new URL("js-dos/emulators/", location.href).href, // dónde están los .wasm
+          autoStart: true,
+        });
+      }).catch(() => {
+        dosDiv.outerHTML = '<div class="missing">Este juego todavía no está instalado: falta el archivo <code>dos/' +
+          juego.bundle + '</code> en el repositorio. Mira el README para saber cómo agregarlo.</div>';
+      });
+    }
   </script>
 </body>
 </html>
