@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juegos retro en el navegador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0e0d12;--panel:#17151d;--line:#2a2633;--ink:#ece6d8;--dim:#9b93a8;--accent:#ff6a3d;--green:#7cf29a;--yellow:#ffd25a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.55;min-height:100vh;
+       background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px)}
+  .wrap{max-width:900px;margin:0 auto;padding:56px 22px}
+  h1{font-family:"Press Start 2P",monospace;font-size:clamp(18px,4vw,30px);line-height:1.45;color:var(--accent);margin:0 0 14px}
+  .lead{color:var(--dim);max-width:640px;margin:0 0 40px;font-size:17px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px;transition:transform .15s,border-color .15s}
+  a.card:hover{transform:translateY(-3px);border-color:var(--accent)}
+  .tag{font-family:"Press Start 2P",monospace;font-size:9px;color:var(--green);letter-spacing:.5px}
+  .card h2{margin:10px 0 8px;font-size:20px}
+  .card p{margin:0;color:#cfc8d9;font-size:15px}
+  .go{display:inline-block;margin-top:16px;font-family:"Press Start 2P",monospace;font-size:10px;color:var(--yellow)}
+  footer{margin-top:48px;color:var(--dim);font-size:13px;border-top:1px dashed var(--line);padding-top:16px}
+  footer a{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Juegos retro<br>en el navegador</h1>
+  <p class="lead">Dos formas de llevar los clásicos de los 90 a una página web: construir el motor desde cero para entender cómo funciona, o emular la PC original con WebAssembly.</p>
+  <div class="grid">
+    <a class="card" href="raycaster/">
+      <div class="tag">01 · DESDE CERO</div>
+      <h2>Mini raycaster</h2>
+      <p>Un motor 3D al estilo Wolfenstein 3D en un solo archivo HTML, sin librerías. Muestra los rayos en un mapa y deja activar o desactivar cada parte del motor.</p>
+      <span class="go">JUGAR ▶</span>
+    </a>
+    <a class="card" href="dos/">
+      <div class="tag">02 · EMULACIÓN</div>
+      <h2>Juego DOS con js-dos</h2>
+      <p>DOSBox compilado a WebAssembly ejecuta un juego original de MS-DOS sin modificarlo. Cambia el bundle por Doom shareware o Freedoom.</p>
+      <span class="go">JUGAR ▶</span>
+    </a>
+  </div>
+  <footer>Emulación DOS con <a href="https://js-dos.com/">js-dos</a>. Solo se publican juegos de libre distribución.</footer>
+</div>
+</body>
+</html>

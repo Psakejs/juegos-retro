@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mini raycaster retro: cómo funciona un 3D de los 90</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0d12; --panel:#17151d; --line:#2a2633; --ink:#ece6d8; --dim:#9b93a8;
+    --accent:#ff6a3d; --green:#7cf29a; --yellow:#ffd25a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;line-height:1.55}
+  header{max-width:1100px;margin:0 auto;padding:28px 20px 8px}
+  h1{font-family:"Press Start 2P",monospace;font-size:clamp(16px,2.6vw,24px);line-height:1.4;margin:0 0 10px;color:var(--accent);letter-spacing:.5px}
+  header p{margin:0;color:var(--dim);max-width:760px}
+  main{max-width:1100px;margin:0 auto;padding:16px 20px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px}
+  @media (max-width:860px){main{grid-template-columns:1fr}}
+  .stage{background:#000;border:2px solid var(--line);border-radius:6px;position:relative;overflow:hidden}
+  #view{display:block;width:100%;height:auto;aspect-ratio:320/200;image-rendering:pixelated;image-rendering:crisp-edges;outline:none}
+  .hud{display:flex;justify-content:space-between;gap:10px;padding:8px 12px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--dim);background:#0a090d;border-top:1px solid var(--line);flex-wrap:wrap}
+  .hud b{color:var(--yellow);font-weight:400}
+  .focus-hint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);font-family:"Press Start 2P",monospace;font-size:12px;color:var(--ink);cursor:pointer;text-align:center;padding:20px}
+  .focus-hint.hidden{display:none}
+  .touch{display:none;grid-template-columns:repeat(3,56px);gap:6px;justify-content:center;padding:10px;background:#0a090d}
+  .touch button{height:48px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:18px;touch-action:none;user-select:none}
+  @media (pointer:coarse){.touch{display:grid}}
+  aside{display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px}
+  .card h2{font-family:"Press Start 2P",monospace;font-size:10px;margin:0 0 10px;color:var(--green);letter-spacing:.5px}
+  #map{width:100%;height:auto;aspect-ratio:1;image-rendering:pixelated;display:block;border-radius:4px;cursor:crosshair;background:#000}
+  .small{font-size:12px;color:var(--dim);margin:8px 0 0}
+  label.row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;padding:6px 0;border-bottom:1px dashed var(--line)}
+  label.row:last-child{border-bottom:0}
+  label.row span.v{font-family:"IBM Plex Mono",monospace;color:var(--yellow);font-size:12px;min-width:46px;text-align:right}
+  input[type=range]{width:120px;accent-color:var(--accent)}
+  input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
+  select{background:#0a090d;color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:3px 6px;font-family:inherit}
+  .explain{max-width:1100px;margin:0 auto;padding:10px 20px 50px}
+  .explain h2{font-family:"Press Start 2P",monospace;font-size:13px;color:var(--accent);margin:26px 0 14px}
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px}
+  .step .n{font-family:"Press Start 2P",monospace;font-size:10px;color:var(--yellow)}
+  .step h3{margin:6px 0 6px;font-size:15px}
+  .step p{margin:0;font-size:14px;color:#cfc8d9}
+  code{font-family:"IBM Plex Mono",monospace;font-size:.92em;background:#0a090d;border:1px solid var(--line);padding:1px 5px;border-radius:3px;color:var(--green)}
+  .note{margin-top:14px;font-size:14px;color:#cfc8d9;background:var(--panel);border-left:3px solid var(--accent);padding:12px 14px;border-radius:0 6px 6px 0}
+  kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;border:1px solid var(--line);border-bottom-width:2px;padding:0 5px;border-radius:3px;background:#0a090d}
+</style>
+</head>
+<body>
+<header>
+  <a href="../" style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:#9b93a8;text-decoration:none">← Volver</a>
+  <h1>Mini raycaster</h1>
+  <p>Un "3D falso" como el de Wolfenstein 3D (1992), hecho en unas 300 líneas de JavaScript y un <code>&lt;canvas&gt;</code>, sin librerías. Muévete con <kbd>W</kbd><kbd>S</kbd> o <kbd>↑</kbd><kbd>↓</kbd>, gira con <kbd>←</kbd><kbd>→</kbd> y camina de lado con <kbd>A</kbd><kbd>D</kbd>. Cambia los controles de la derecha para ver qué hace cada pieza del motor.</p>
+</header>
+
+<main>
+  <section>
+    <div class="stage">
+      <canvas id="view" width="320" height="200" tabindex="0"></canvas>
+      <div class="focus-hint" id="hint">CLIC PARA JUGAR</div>
+      <div class="hud">
+        <span>FPS <b id="fps">0</b></span>
+        <span>Rayos/cuadro <b id="rays">0</b></span>
+        <span>Pos <b id="pos">0,0</b></span>
+        <span>Ángulo <b id="ang">0°</b></span>
+      </div>
+      <div class="touch" id="touch">
+        <span></span><button data-k="ArrowUp">▲</button><span></span>
+        <button data-k="ArrowLeft">⟲</button><button data-k="ArrowDown">▼</button><button data-k="ArrowRight">⟳</button>
+      </div>
+    </div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>VISTA DESDE ARRIBA</h2>
+      <canvas id="map" width="256" height="256"></canvas>
+      <p class="small">Las líneas verdes son los rayos. Haz clic en una celda para poner o quitar una pared.</p>
+    </div>
+    <div class="card">
+      <h2>CONTROLES DEL MOTOR</h2>
+      <label class="row">Número de rayos
+        <select id="nrays">
+          <option value="20">20</option><option value="40">40</option><option value="80">80</option>
+          <option value="160">160</option><option value="320" selected>320</option>
+        </select>
+      </label>
+      <label class="row">Campo de visión <input type="range" id="fov" min="30" max="120" value="66"><span class="v" id="fovv">66°</span></label>
+      <label class="row">Corregir "ojo de pez" <input type="checkbox" id="fish" checked></label>
+      <label class="row">Texturas <input type="checkbox" id="tex" checked></label>
+      <label class="row">Sombra por distancia <input type="checkbox" id="fog" checked></label>
+      <label class="row">Rayos en el mapa <input type="checkbox" id="showrays" checked></label>
+    </div>
+  </aside>
+</main>
+
+<section class="explain">
+  <h2>CÓMO FUNCIONA, PASO A PASO</h2>
+  <div class="steps">
+    <div class="step"><div class="n">01</div><h3>El mundo es una cuadrícula</h3><p>El nivel es una matriz 2D: <code>0</code> es suelo y <code>1–4</code> son paredes de distinto tipo. No hay modelos 3D. Todo lo que ves sale de este mapa plano (el de la derecha).</p></div>
+    <div class="step"><div class="n">02</div><h3>Un rayo por columna</h3><p>Por cada columna vertical de la pantalla (320 en total) se lanza un rayo desde el jugador, repartiendo los ángulos dentro del campo de visión. Baja a 20 rayos y verás cada rayo como una franja ancha.</p></div>
+    <div class="step"><div class="n">03</div><h3>DDA: saltar de celda en celda</h3><p>En vez de avanzar el rayo poco a poco, el algoritmo DDA calcula cuánto falta para cruzar la siguiente línea vertical u horizontal de la cuadrícula y salta directamente ahí, hasta encontrar una pared. Por eso es tan rápido.</p></div>
+    <div class="step"><div class="n">04</div><h3>Distancia → altura</h3><p>Cuanto más lejos está la pared, más bajita se dibuja: <code>altura = escala / distancia</code>. Se pinta una línea vertical centrada, con techo arriba y suelo abajo. Esa es toda la "proyección 3D".</p></div>
+    <div class="step"><div class="n">05</div><h3>Corrección de ojo de pez</h3><p>Los rayos de los bordes miden más distancia que los del centro aunque la pared sea recta, así que la pared se ve curva. Se corrige multiplicando por <code>cos(ánguloRayo − ánguloJugador)</code>. Desactívalo para verlo.</p></div>
+    <div class="step"><div class="n">06</div><h3>Texturas en una columna</h3><p>Se calcula en qué punto exacto de la pared pegó el rayo (de 0 a 1). Eso elige qué columna de la textura de 64×64 se estira a lo alto de la franja. Las caras norte/sur se oscurecen para dar volumen.</p></div>
+  </div>
+
+  <h2>¿Y DOOM?</h2>
+  <div class="note">
+    Doom (1993) va un paso más allá: el mapa no es una cuadrícula sino polígonos de cualquier forma, con alturas distintas de suelo y techo, y para decidir qué dibujar usa un árbol BSP en vez de lanzar rayos. Aun así la idea es la misma: un mundo 2D que se "levanta" a 3D columna por columna, sin GPU. Por eso estos juegos corren hoy dentro de una página web casi sin gastar recursos. Para jugar al Doom original en el navegador no hace falta reescribirlo: se compila un emulador de DOS (DOSBox) a WebAssembly, y eso es lo que hace <b>js-dos</b>.
+  </div>
+</section>
+
+<script>
+(() => {
+  // ---------- 1. MAPA (cuadrícula) ----------
+  const MAP_SRC = [
+    "1111111111111111",
+    "1000000000000001",
+    "1022200000033301",
+    "1020000000000301",
+    "1020004440000301",
+    "1000004040000001",
+    "1000004040000001",
+    "1000000000022201",
+    "1333000000020001",
+    "1000000100020001",
+    "1000000100000001",
+    "1022220100444401",
+    "1000000000400001",
+    "1000000000400001",
+    "1000000000000001",
+    "1111111111111111",
+  ];
+  const MW = 16, MH = 16;
+  const map = MAP_SRC.map(r => r.split("").map(Number));
+  const cell = (x, y) => (x < 0 || y < 0 || x >= MW || y >= MH) ? 1 : map[y][x];
+
+  // ---------- 2. PANTALLA (búfer de píxeles) ----------
+  const W = 320, H = 200, TEX = 64;
+  const view = document.getElementById("view");
+  const ctx = view.getContext("2d");
+  const img = ctx.createImageData(W, H);
+  const buf = new Uint32Array(img.data.buffer);   // un entero por píxel (ABGR)
+  const rgb = (r, g, b) => ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
+  const unpack = c => [c & 255, (c >> 8) & 255, (c >> 16) & 255];
+  const scale = (c, f) => { const [r, g, b] = unpack(c); return rgb(r * f | 0, g * f | 0, b * f | 0); };
+
+  // ---------- 3. TEXTURAS procedurales (sin imágenes externas) ----------
+  const noise = (x, y, s) => {
+    let n = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 2147483647);
+    n = Math.imul(n ^ (n >>> 13), 1274126177);
+    return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+  };
+  function makeTex(fn) { const t = new Uint32Array(TEX * TEX); for (let y = 0; y < TEX; y++) for (let x = 0; x < TEX; x++) t[y * TEX + x] = fn(x, y); return t; }
+  const textures = [
+    null,
+    // 1: ladrillo
+    makeTex((x, y) => {
+      const row = y >> 3, off = (row & 1) ? 8 : 0;
+      const mortar = (y & 7) === 0 || ((x + off) & 15) === 0;
+      if (mortar) return rgb(70, 62, 58);
+      const n = noise((x + off) >> 4, row, 1) * 40 + noise(x, y, 2) * 25;
+      return rgb(150 + n | 0, 58 + n * .4 | 0, 40);
+    }),
+    // 2: piedra
+    makeTex((x, y) => {
+      const bx = x >> 4, by = y >> 4, edge = (x & 15) === 0 || (y & 15) === 0;
+      const n = noise(bx, by, 3) * 50 + noise(x, y, 4) * 30;
+      const g = edge ? 55 : 95 + n | 0;
+      return rgb(g, g, g + 8);
+    }),
+    // 3: madera
+    makeTex((x, y) => {
+      const plank = (x & 15) === 0;
+      const grain = Math.sin((y + noise(x >> 4, 0, 5) * 40) * 0.35 + x * 0.6) * 12 + noise(x, y, 6) * 18;
+      if (plank) return rgb(60, 36, 18);
+      return rgb(128 + grain | 0, 82 + grain * .7 | 0, 42);
+    }),
+    // 4: panel "tecno"
+    makeTex((x, y) => {
+      const border = x < 2 || y < 2 || x > 61 || y > 61;
+      const light = (x > 24 && x < 40 && y > 10 && y < 16);
+      if (border) return rgb(30, 40, 70);
+      if (light) return rgb(120, 255, 200);
+      const n = noise(x >> 2, y >> 2, 7) * 18;
+      return rgb(50 + n | 0, 70 + n | 0, 120 + n | 0);
+    }),
+  ];
+  const flatColors = [0, rgb(170, 70, 50), rgb(120, 120, 128), rgb(140, 90, 45), rgb(60, 90, 150)];
+
+  // Techo y suelo: un color por fila de la pantalla
+  const ceilRow = new Uint32Array(H), floorRow = new Uint32Array(H);
+  for (let y = 0; y < H; y++) {
+    const t = y / (H / 2);
+    ceilRow[y] = rgb(18 + 30 * t | 0, 16 + 22 * t | 0, 34 + 30 * t | 0);
+    const f = (y - H / 2) / (H / 2);
+    floorRow[y] = rgb(30 + 60 * f | 0, 26 + 44 * f | 0, 22 + 26 * f | 0);
+  }
+
+  // ---------- 4. JUGADOR y AJUSTES ----------
+  const player = { x: 1.5, y: 9.5, a: -0.35 };
+  const opt = { nrays: 320, fov: 66 * Math.PI / 180, fish: true, tex: true, fog: true, showrays: true };
+  const $ = id => document.getElementById(id);
+  $("nrays").onchange = e => opt.nrays = +e.target.value;
+  $("fov").oninput = e => { opt.fov = e.target.value * Math.PI / 180; $("fovv").textContent = e.target.value + "°"; };
+  $("fish").onchange = e => opt.fish = e.target.checked;
+  $("tex").onchange = e => opt.tex = e.target.checked;
+  $("fog").onchange = e => opt.fog = e.target.checked;
+  $("showrays").onchange = e => opt.showrays = e.target.checked;
+
+  // ---------- 5. ENTRADA ----------
+  const keys = new Set();
+  const GAME_KEYS = ["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+  let focused = false;
+  const hint = $("hint");
+  const focusGame = () => { focused = true; hint.classList.add("hidden"); view.focus(); };
+  hint.addEventListener("click", focusGame);
+  view.addEventListener("click", focusGame);
+  view.addEventListener("blur", () => { focused = false; keys.clear(); hint.classList.remove("hidden"); });
+  view.addEventListener("keydown", e => { if (GAME_KEYS.includes(e.code)) { keys.add(e.code); e.preventDefault(); } });
+  view.addEventListener("keyup", e => keys.delete(e.code));
+  document.querySelectorAll("#touch button").forEach(b => {
+    const k = b.dataset.k;
+    b.addEventListener("pointerdown", e => { e.preventDefault(); keys.add(k); hint.classList.add("hidden"); });
+    ["pointerup", "pointerleave", "pointercancel"].forEach(ev => b.addEventListener(ev, () => keys.delete(k)));
+  });
+
+  // ---------- 6. MOVIMIENTO con colisiones ----------
+  const R = 0.2; // radio del jugador
+  const free = (x, y) => cell(Math.floor(x - R), Math.floor(y - R)) === 0 && cell(Math.floor(x + R), Math.floor(y - R)) === 0 &&
+                         cell(Math.floor(x - R), Math.floor(y + R)) === 0 && cell(Math.floor(x + R), Math.floor(y + R)) === 0;
+  function update(dt) {
+    const rot = 2.6 * dt, spd = 3.0 * dt;
+    if (keys.has("ArrowLeft")) player.a -= rot;
+    if (keys.has("ArrowRight")) player.a += rot;
+    let f = 0, s = 0;
+    if (keys.has("KeyW") || keys.has("ArrowUp")) f += 1;
+    if (keys.has("KeyS") || keys.has("ArrowDown")) f -= 1;
+    if (keys.has("KeyD")) s += 1;
+    if (keys.has("KeyA")) s -= 1;
+    const ca = Math.cos(player.a), sa = Math.sin(player.a);
+    const dx = (ca * f - sa * s) * spd, dy = (sa * f + ca * s) * spd;
+    if (free(player.x + dx, player.y)) player.x += dx;   // ejes por separado = deslizarse por las paredes
+    if (free(player.x, player.y + dy)) player.y += dy;
+  }
+
+  // ---------- 7. RAYCASTING (el corazón del motor) ----------
+  const hits = []; // puntos de impacto para dibujar en el mapa
+  function castRay(angle) {
+    const dirX = Math.cos(angle), dirY = Math.sin(angle);
+    let mapX = Math.floor(player.x), mapY = Math.floor(player.y);
+    const deltaX = Math.abs(1 / dirX), deltaY = Math.abs(1 / dirY); // distancia entre líneas de la cuadrícula
+    const stepX = dirX < 0 ? -1 : 1, stepY = dirY < 0 ? -1 : 1;
+    let sideX = (dirX < 0 ? player.x - mapX : mapX + 1 - player.x) * deltaX;
+    let sideY = (dirY < 0 ? player.y - mapY : mapY + 1 - player.y) * deltaY;
+    let side = 0, tile = 0;
+    for (let i = 0; i < 64 && tile === 0; i++) {        // DDA: saltar a la siguiente línea más cercana
+      if (sideX < sideY) { sideX += deltaX; mapX += stepX; side = 0; }
+      else               { sideY += deltaY; mapY += stepY; side = 1; }
+      tile = cell(mapX, mapY);
+    }
+    const dist = side === 0 ? sideX - deltaX : sideY - deltaY;
+    let wallX = side === 0 ? player.y + dist * dirY : player.x + dist * dirX;
+    wallX -= Math.floor(wallX);
+    return { dist, side, tile, wallX, dirX, dirY };
+  }
+
+  function render() {
+    const n = opt.nrays, colW = W / n;
+    const halfTan = Math.tan(opt.fov / 2);
+    const projScale = (W / 2) / halfTan;               // distancia focal en píxeles
+    hits.length = 0;
+    for (let i = 0; i < n; i++) {
+      const camX = 2 * (i + 0.5) / n - 1;               // -1 (izq) ... +1 (der)
+      const rayA = player.a + Math.atan(camX * halfTan);
+      const r = castRay(rayA);
+      hits.push([player.x + r.dirX * r.dist, player.y + r.dirY * r.dist]);
+      const d = opt.fish ? r.dist * Math.cos(rayA - player.a) : r.dist;
+      const lineH = projScale / Math.max(d, 0.0001);
+      const top = Math.round(H / 2 - lineH / 2), bot = Math.round(H / 2 + lineH / 2);
+      const y0 = Math.max(0, top), y1 = Math.min(H, bot);
+      let shade = opt.fog ? Math.max(0.18, 1 - d / 14) : 1;
+      if (r.side === 1) shade *= 0.72;
+      const tex = textures[r.tile];
+      let tx = Math.floor(r.wallX * TEX);
+      if ((r.side === 0 && r.dirX > 0) || (r.side === 1 && r.dirY < 0)) tx = TEX - 1 - tx;
+      const flat = scale(flatColors[r.tile], shade);
+      // Precalcular la columna de textura ya sombreada
+      const col = new Uint32Array(TEX);
+      if (opt.tex) for (let t = 0; t < TEX; t++) col[t] = scale(tex[t * TEX + tx], shade);
+      const x0 = Math.floor(i * colW), x1 = Math.floor((i + 1) * colW);
+      for (let x = x0; x < x1; x++) {
+        let p = x;
+        for (let y = 0; y < y0; y++, p += W) buf[p] = ceilRow[y];
+        for (let y = y0; y < y1; y++, p += W) {
+          buf[p] = opt.tex ? col[Math.min(TEX - 1, ((y - top) * TEX / lineH) | 0)] : flat;
+        }
+        for (let y = y1; y < H; y++, p += W) buf[p] = floorRow[y];
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // ---------- 8. MINIMAPA ----------
+  const mc = $("map"), mctx = mc.getContext("2d"), S = mc.width / MW;
+  const mapCss = ["#111", "#a8462f", "#77777f", "#8a5a2c", "#3c5a96"];
+  function drawMap() {
+    for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+      mctx.fillStyle = mapCss[map[y][x]];
+      mctx.fillRect(x * S, y * S, S - 1, S - 1);
+    }
+    const px = player.x * S, py = player.y * S;
+    if (opt.showrays) {
+      mctx.strokeStyle = "rgba(124,242,154,0.55)"; mctx.lineWidth = 1;
+      mctx.beginPath();
+      const step = Math.max(1, Math.floor(hits.length / 40));
+      for (let i = 0; i < hits.length; i += step) { mctx.moveTo(px, py); mctx.lineTo(hits[i][0] * S, hits[i][1] * S); }
+      const last = hits[hits.length - 1]; if (last) { mctx.moveTo(px, py); mctx.lineTo(last[0] * S, last[1] * S); }
+      mctx.stroke();
+    }
+    mctx.fillStyle = "#ffd25a";
+    mctx.beginPath(); mctx.arc(px, py, S * 0.28, 0, Math.PI * 2); mctx.fill();
+    mctx.strokeStyle = "#ffd25a"; mctx.lineWidth = 2;
+    mctx.beginPath(); mctx.moveTo(px, py); mctx.lineTo(px + Math.cos(player.a) * S * 0.8, py + Math.sin(player.a) * S * 0.8); mctx.stroke();
+  }
+  mc.addEventListener("click", e => {
+    const r = mc.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / r.width * MW), y = Math.floor((e.clientY - r.top) / r.height * MH);
+    if (x <= 0 || y <= 0 || x >= MW - 1 || y >= MH - 1) return;           // el borde siempre es pared
+    if (map[y][x] === 0) {
+      if (Math.abs(x + 0.5 - player.x) < 0.5 + R && Math.abs(y + 0.5 - player.y) < 0.5 + R) return; // no encerrar al jugador
+      map[y][x] = 1 + ((x + y) % 4);
+    } else map[y][x] = 0;
+  });
+
+  // ---------- 9. BUCLE PRINCIPAL ----------
+  let last = performance.now(), acc = 0, frames = 0;
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    update(dt); render(); drawMap();
+    frames++; acc += dt;
+    if (acc >= 0.5) {
+      $("fps").textContent = Math.round(frames / acc); frames = 0; acc = 0;
+      $("rays").textContent = opt.nrays;
+      $("pos").textContent = player.x.toFixed(1) + ", " + player.y.toFixed(1);
+      $("ang").textContent = (((player.a * 180 / Math.PI) % 360 + 360) % 360).toFixed(0) + "°";
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
