@@ -5,30 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Juego DOS en el navegador con js-dos</title>
 
-  <!-- 1) js-dos: DOSBox compilado a WebAssembly, servido desde su CDN -->
-  <link rel="stylesheet" href="https://v8.js-dos.com/latest/js-dos.css">
-  <script src="https://v8.js-dos.com/latest/js-dos.js"></script>
+  <!-- 1) js-dos: DOSBox compilado a WebAssembly.
+          Está copiado dentro del repositorio (carpeta js-dos/), así no depende de servidores externos. -->
+  <link rel="stylesheet" href="js-dos/js-dos.css">
+  <script src="js-dos/js-dos.js"></script>
 
   <style>
-    html, body { margin: 0; height: 100%; background: #111; }
-    #dos { width: 100%; max-width: 960px; aspect-ratio: 4 / 3; margin: 40px auto 0; }
+    html, body { margin: 0; height: 100%; background: #111; color: #ccc; font-family: monospace; }
+    .top { display: flex; align-items: center; gap: 16px; padding: 8px 12px; font-size: 13px; }
+    .top a { color: #bbb; text-decoration: none; background: #222; padding: 4px 8px; border-radius: 4px; }
+    #dos { width: 100%; max-width: 960px; aspect-ratio: 4 / 3; margin: 0 auto; }
   </style>
 </head>
 <body>
-  <a href="../" style="position:fixed;top:10px;left:12px;z-index:10;font-family:monospace;color:#bbb;background:#000a;padding:4px 8px;border-radius:4px;text-decoration:none">← Volver</a>
+  <div class="top">
+    <a href="../">← Volver</a>
+    <span>Digger (1983) · flechas para moverte, F1 para disparar</span>
+  </div>
+
   <!-- 2) Un div vacío: js-dos dibuja ahí la pantalla del juego -->
   <div id="dos"></div>
 
   <script>
     // 3) Arrancar el emulador con un "bundle" .jsdos
     //    Un bundle es solo un .zip con los archivos del juego + .jsdos/dosbox.conf
-    //
-    //    Este ejemplo usa Digger, el bundle de demostración de la documentación oficial.
-    //    Para DOOM: crea tu bundle con DOOM shareware (DOOM.EXE + DOOM1.WAD, de libre
-    //    distribución) en https://dos.zone/studio/ y cambia la url por "doom.jsdos".
+    //    Para DOOM: crea doom.jsdos con DOOM shareware (o Freedoom) en https://dos.zone/studio/,
+    //    ponlo en esta carpeta y cambia la url por "doom.jsdos".
     Dos(document.getElementById("dos"), {
-      url: "https://cdn.dos.zone/original/2X/9/9ed7eb9c2c441f56656692ed4dc7ab28f58503ce.jsdos",
-      // url: "doom.jsdos",   // <- tu bundle, en la misma carpeta que este HTML
+      url: "digger.jsdos",
+      pathPrefix: new URL("js-dos/emulators/", location.href).href, // dónde están los .wasm
+      autoStart: true,
     });
   </script>
 </body>
